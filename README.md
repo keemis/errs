@@ -21,7 +21,7 @@ err := errs.New("system error")
 Using `errs.NewWithOption` new an error, with some option
 ```go
 // simple
-err := errs.NewWithOption()
+err := errs.NewWithOption(errs.OptMsg("system error"))
 // commonly use
 err := errs.NewWithOption(errs.OptCode(-5019), errs.OptMsg("system error"))
 // has data

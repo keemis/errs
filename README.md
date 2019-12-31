@@ -1,85 +1,147 @@
-# errs 
+validation
+==============
 
-Package errors provides simple error handling primitives.
+validation is a form validation for a data validation and error collecting using Go.
 
-`go get github.com/keemi-zhou/errs`
+## Installation and tests
 
-The traditional error handling idiom in Go is roughly akin to
-```go
-if err != nil {
-        return err
-}
-```
+Install:
 
-## New an error
+	go get github.com/astaxie/beego/validation
 
-Using `errs.New` new an error
-```go
-err := errs.New("system error")
-```
+Test:
 
-Using `errs.NewWithOption` new an error, with some option
-```go
-// simple
-err := errs.NewWithOption(errs.OptMsg("system error"))
-// commonly use
-err := errs.NewWithOption(errs.OptCode(-5019), errs.OptMsg("system error"))
-// has data
-err := errs.NewWithOption(errs.OptCode(-5019), errs.OptMsg("system error"), errs.OptData(nil))
-```
+	go test github.com/astaxie/beego/validation
 
-## Wrap rewrite an error
+## Example
 
-Using `errs.Wrap` rewrite an error
-```go
-err = errs.Wrap(err, errs.OptCode(-5019), errs.OptMsg("system error"))
-```
+Direct Use:
 
-## Print an error info
+	import (
+		"github.com/astaxie/beego/validation"
+		"log"
+	)
 
-Using `err.Error` print an error message
-```go
-fmt.Println(err.Error())
-// system error
-```
+	type User struct {
+		Name string
+		Age int
+	}
 
-Using `err.Printf` print an error some detail
-```go
-fmt.Printf("%+v \n", err)
-// system error
-// main.init.0
-//         /develop/src/errs/main.go:55
-// runtime.doInit
-//         /usr/local/go/src/runtime/proc.go:5222
-// runtime.main
-//         /usr/local/go/src/runtime/proc.go:190
-// runtime.goexit
-//         /usr/local/go/src/runtime/asm_amd64.s:1357 
-```
+	func main() {
+		u := User{"man", 40}
+		valid := validation.Validation{}
+		valid.Required(u.Name, "name")
+		valid.MaxSize(u.Name, 15, "nameMax")
+		valid.Range(u.Age, 0, 140, "age")
+		if valid.HasErrors() {
+			// validation does not pass
+			// print invalid message
+			for _, err := range valid.Errors {
+				log.Println(err.Key, err.Message)
+			}
+		}
+		// or use like this
+		if v := valid.Max(u.Age, 140, "ageMax"); !v.Ok {
+			log.Println(v.Error.Key, v.Error.Message)
+		}
+	}
 
-## Return error info
+Struct Tag Use:
 
-Using `errs.GetCode` return error code
-```go
-fmt.Println(errs.GetCode(err))
-// 5019
-```
+	import (
+		"github.com/astaxie/beego/validation"
+	)
 
-Using `errs.GetData` return error data
-```go
-fmt.Println(errs.GetData(err))
-// nil
-```
+	// validation function follow with "valid" tag
+	// functions divide with ";"
+	// parameters in parentheses "()" and divide with ","
+	// Match function's pattern string must in "//"
+	type user struct {
+		Id   int
+		Name string `valid:"Required;Match(/^(test)?\\w*@;com$/)"`
+		Age  int    `valid:"Required;Range(1, 140)"`
+	}
 
-Using `errs.GetStack` return error stack
-```go
-fmt.Println(errs.GetStack(err))
-// main.init.0
-//         /develop/src/errs/main.go:55
-// runtime.doInit
-//         /usr/local/go/src/runtime/proc.go:5222
-// runtime.main
-//         /usr/local/go/src/runtime/proc.go:190
-// runtime.goexit
-//         /usr/local/go/src/runtime/asm_amd64.s:1357 
-```
+	func main() {
+		valid := validation.Validation{}
+		// ignore empty field valid
+		// see CanSkipFuncs
+		// valid := validation.Validation{RequiredFirst:true}
+		u := user{Name: "test", Age: 40}
+		b, err := valid.Valid(u)
+		if err != nil {
+			// handle error
+		}
+		if !b {
+			// validation does not pass
+			// blabla...
+		}
+	}
+
+Use custom function:
+
+	import (
+		"github.com/astaxie/beego/validation"
+	)
+
+	type user struct {
+		Id   int
+		Name string `valid:"Required;IsMe"`
+		Age  int    `valid:"Required;Range(1, 140)"`
+	}
+
+	func IsMe(v *validation.Validation, obj interface{}, key string) {
+		name, ok:= obj.(string)
+		if !ok {
+			// wrong use case?
+			return
+		}
+
+		if name != "me" {
+			// valid false
+			v.SetError("Name", "is not me!")
+		}
+	}
+
+	func main() {
+		valid := validation.Validation{}
+		if err := validation.AddCustomFunc("IsMe", IsMe); err != nil {
+			// hadle error
+		}
+		u := user{Name: "test", Age: 40}
+		b, err := valid.Valid(u)
+		if err != nil {
+			// handle error
+		}
+		if !b {
+			// validation does not pass
+			// blabla...
+		}
+	}
+
+Struct Tag Functions:
+
+	Required
+	Min(min int)
+	Max(max int)
+	Range(min, max int)
+	MinSize(min int)
+	MaxSize(max int)
+	Length(length int)
+	Alpha
+	Numeric
+	AlphaNumeric
+	Match(pattern string)
+	AlphaDash
+	Email
+	IP
+	Base64
+	Mobile
+	Tel
+	Phone
+	ZipCode
+
+
+## LICENSE
+
+BSD License http://creativecommons.org/licenses/BSD/
